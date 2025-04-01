@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Image Upload</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .video-preview {
+            max-width: 100%;
+            margin-bottom: 10px;
+        }
+        .recording-item {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .recording-actions {
+            margin-top: 10px;
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 0.2em solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: spinner-border .75s linear infinite;
+            margin-right: 0.5rem;
+        }
+        @keyframes spinner-border {
+            to { transform: rotate(360deg); }
+        }
+        .tab-content {
+            padding: 20px 0;
+        }
+        #storeTab {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Gemini Web Tool</h1>
+        
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="image-tab" data-bs-toggle="tab" data-bs-target="#image" type="button" role="tab" aria-controls="image" aria-selected="true">
+                    Generate Image
+                </button>
+            </li>
+            <!-- <li class="nav-item" role="presentation">
+                <button class="nav-link" id="recording-tab" data-bs-toggle="tab" data-bs-target="#recording" type="button" role="tab" aria-controls="recording" aria-selected="false">
+                    Record Webpage
+                </button>
+            </li> -->
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="store-tab" data-bs-toggle="tab" data-bs-target="#store" type="button" role="tab" aria-controls="store" aria-selected="false">
+                    Analytics Store
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="optimize-image-tab" data-bs-toggle="tab" data-bs-target="#optimize-image" type="button" role="tab" aria-controls="optimize-image" aria-selected="false">
+                    Optimize Image
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="upload-video-tab" data-bs-toggle="tab" data-bs-target="#upload-video" type="button" role="tab" aria-controls="upload-video" aria-selected="false">
+                    Upload Video
+                </button>
+            </li>
+        </ul>
+        
+        <div class="tab-content" id="myTabContent">
+            <!-- Generate Image Tab -->
+            <div class="tab-pane fade show active" id="image" role="tabpanel" aria-labelledby="image-tab">
+        <div class="row">
+            <div class="col-md-6">
+                        <h3>Generate Image from Prompt</h3>
+                        <form id="imageForm" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label for="prompt" class="form-label">Prompt</label>
+                                <textarea class="form-control" id="prompt" name="prompt" rows="3" required></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="image1" class="form-label">Image 1 (optional)</label>
+                                <input class="form-control" type="file" id="image1" name="image1" accept="image/*">
+                            </div>
+                            <div class="mb-3">
+                                <label for="image2" class="form-label">Image 2 (optional)</label>
+                                <input class="form-control" type="file" id="image2" name="image2" accept="image/*">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Generate</button>
+                        </form>
+                    </div>
+                    <div class="col-md-6">
+                        <h3>Result</h3>
+                        <div id="result" class="mt-3">
+                            <img id="resultImage" style="max-width: 100%; display: none;" class="mb-3">
+                            <div id="resultText" style="white-space: pre-wrap;"></div>
+                        </div>
+                    </div>
+                </div>
+                            </div>
+                            
+            <!-- Record Webpage Tab -->
+            <div class="tab-pane fade" id="recording" role="tabpanel" aria-labelledby="recording-tab">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h3>Record Webpage</h3>
+                        <form id="recordForm">
+                            <div class="mb-3">
+                                <label for="url" class="form-label">Webpage URL</label>
+                                <input type="url" class="form-control" id="url" name="url" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="recordButton">Start Recording</button>
+                        </form>
+
+                        <div id="recordingStatus" class="alert alert-info mt-3" style="display: none;">
+                            <div class="d-flex align-items-center mb-2">
+                                <strong>Recording in progress...</strong>
+                            </div>
+                            <div class="progress">
+                                <div id="recordingProgress" class="progress-bar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="mt-4">Recordings</h3>
+                <div id="recordingsList"></div>
+                            </div>
+                            
+            <!-- Analytics Store Tab -->
+            <div class="tab-pane fade" id="store" role="tabpanel" aria-labelledby="store-tab">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h3>Analyze Website</h3>
+                        <form id="storeAnalyticsForm">
+                            <div class="mb-3">
+                                <label for="storeUrl" class="form-label">Website URL</label>
+                                <input type="url" class="form-control" id="storeUrl" name="storeUrl" required 
+                                       placeholder="Enter the website URL to analyze">
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="analyzeStoreButton">Analyze Website</button>
+                        </form>
+
+                        <div id="storeAnalyticsStatus" class="alert alert-info mt-3" style="display: none;">
+                            <div class="d-flex align-items-center mb-2">
+                                <strong id="storeStatusText">Processing...</strong>
+                            </div>
+                            <div class="progress">
+                                <div id="storeProgress" class="progress-bar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="mt-4">Analytics Results</h3>
+                <div id="analyticsList"></div>
+                            </div>
+                            
+            <!-- Optimize Image Tab -->
+            <div class="tab-pane fade" id="optimize-image" role="tabpanel" aria-labelledby="optimize-image-tab">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h3>Upload Images</h3>
+                        <form id="optimizeImageForm" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label for="imageFiles" class="form-label">Select Images</label>
+                                <input type="file" class="form-control" id="imageFiles" name="imageFiles" accept="image/*" multiple>
+                                <div class="form-text">You can select multiple images</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="imageUrls" class="form-label">Image URLs (one per line)</label>
+                                <textarea class="form-control" id="imageUrls" name="imageUrls" rows="3" placeholder="Enter image URLs, one per line"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-primary" id="removeBackgroundBtn">
+                                        <i class="fas fa-cut"></i> Remove Background
+                                    </button>
+                                    <button type="button" class="btn btn-success" id="optimizeBackgroundBtn">
+                                        <i class="fas fa-magic"></i> Optimize Background
+                                    </button>
+                                    <button type="button" class="btn btn-info" id="optimizeBackgroundWithAIBtn">
+                                        <i class="fas fa-robot"></i> Optimize Background with AI
+                                    </button>
+                                    <button type="button" class="btn btn-warning" id="generateVideoBtn">
+                                        <i class="fas fa-video"></i> Generate Video
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                        <div id="optimizeStatus" class="alert alert-info mt-3" style="display: none;">
+                            <div class="d-flex align-items-center mb-2">
+                                <strong id="optimizeStatusText">Processing...</strong>
+                            </div>
+                            <div class="progress">
+                                <div id="optimizeProgress" class="progress-bar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h3>Results</h3>
+                        <div id="optimizeResults" class="row">
+                            <!-- Results will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Upload Video Tab -->
+            <div class="tab-pane fade" id="upload-video" role="tabpanel" aria-labelledby="upload-video-tab">
+                <div class="row">
+            <div class="col-md-6">
+                        <h3>Upload Video for Analysis</h3>
+                        <form id="uploadVideoForm" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label for="videoFile" class="form-label">Select Video File</label>
+                                <input type="file" class="form-control" id="videoFile" name="videoFile" accept="video/*" required>
+                                <div class="form-text">Supported formats: MP4, AVI, MOV (max size: 50MB)</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="analysisPrompt" class="form-label">Analysis Prompt (Optional)</label>
+                                <textarea class="form-control" id="analysisPrompt" name="analysisPrompt" rows="2" 
+                                          placeholder="E.g., 'What's happening in this video?' or leave empty for general analysis"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="uploadButton">Upload & Analyze</button>
+                        </form>
+
+                        <div id="uploadStatus" class="alert alert-info mt-3" style="display: none;">
+                            <div class="d-flex align-items-center mb-2">
+                                <strong id="uploadStatusText">Uploading...</strong>
+                            </div>
+                            <div class="progress">
+                                <div id="uploadProgress" class="progress-bar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h3>Video Preview</h3>
+                        <div id="videoPreviewContainer" class="mb-3" style="display: none;">
+                            <video id="videoPreview" controls style="max-width: 100%; max-height: 300px;"></video>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="mt-4">Uploaded Videos</h3>
+                <div id="uploadedVideosList"></div>
+            </div>
+        </div>
+        
+        <!-- Analysis Modal -->
+        <div class="modal fade" id="analysisModal" tabindex="-1" aria-labelledby="analysisModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="analysisModalLabel">Analysis Result</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <pre id="analysisContent" style="white-space: pre-wrap;"></pre>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global variable to store analysis results
+        const analyticStoreResults = new Map();
+        
+        // Handle store analytics form submission
+        document.getElementById('storeAnalyticsForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const url = document.getElementById('storeUrl').value;
+            const statusDiv = document.getElementById('storeAnalyticsStatus');
+            const progressBar = document.getElementById('storeProgress');
+            const statusText = document.getElementById('storeStatusText');
+            const analyzeButton = document.getElementById('analyzeStoreButton');
+            
+            try {
+                // Disable button and show loading state
+                statusDiv.style.display = 'block';
+                progressBar.style.width = '0%';
+                statusText.textContent = 'Recording webpage...';
+                analyzeButton.disabled = true;
+                analyzeButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Recording...';
+                
+                // Start analysis
+                const response = await fetch('/analyze_store', {
+                method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ url })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Create result card
+                    const resultCard = document.createElement('div');
+                    resultCard.className = 'card mb-3';
+                    
+                    // Add grade color
+                    let gradeColor = 'text-warning'; // Default yellow for warning
+                    if (data.grade.includes('✅')) {
+                        gradeColor = 'text-success';
+                    } else if (data.grade.includes('❌')) {
+                        gradeColor = 'text-danger';
+                    }
+                    
+                    resultCard.innerHTML = `
+                        <div class="card-body">
+                            <h5 class="card-title">${data.product_name}</h5>
+                            <div class="card-text">
+                                <p><strong>URL:</strong> <a href="${data.url}" target="_blank">${data.url}</a></p>
+                                <p><strong>Analysis Date:</strong> ${data.creation_time}</p>
+                                <p><strong>Score:</strong> ${data.score}/100</p>
+                                <p><strong>Grade:</strong> <span class="${gradeColor}">${data.grade}</span></p>
+                                <a href="/view_report/${data.analysis_id}" target="_blank" class="btn btn-primary mt-2">View Full Report</a>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Add to analytics list at the top
+                    const analyticsList = document.getElementById('analyticsList');
+                    analyticsList.insertBefore(resultCard, analyticsList.firstChild);
+                    
+                    // Show success message
+                    statusDiv.innerHTML = '<div class="alert alert-success">Analysis completed successfully!</div>';
+                    
+                    // Clear form
+                    document.getElementById('storeUrl').value = '';
+                    
+                    // Hide status after 3 seconds
+                    setTimeout(() => {
+                        statusDiv.style.display = 'none';
+                    }, 3000);
+                } else {
+                    throw new Error(data.message || 'Analysis failed');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                statusDiv.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+            } finally {
+                // Reset button state
+                analyzeButton.disabled = false;
+                analyzeButton.innerHTML = 'Analyze Website';
+            }
+        });
+
+        // Load existing analytics when page loads
+        async function loadAnalytics() {
+            try {
+                const response = await fetch('/store_analytics');
+                const analytics = await response.json();
+                
+                const analyticsList = document.getElementById('analyticsList');
+                analyticsList.innerHTML = ''; // Clear existing content
+                
+                if (analytics.length === 0) {
+                    analyticsList.innerHTML = '<p class="text-muted">No analytics results available yet.</p>';
+                    return;
+                }
+                
+                analytics.forEach(item => {
+                    const resultCard = document.createElement('div');
+                    resultCard.className = 'card mb-3';
+                    
+                    // Add grade color
+                    let gradeColor = 'text-warning'; // Default yellow for warning
+                    if (item.grade && item.grade.includes('✅')) {
+                        gradeColor = 'text-success';
+                    } else if (item.grade && item.grade.includes('❌')) {
+                        gradeColor = 'text-danger';
+                    }
+                    
+                    resultCard.innerHTML = `
+                        <div class="card-body">
+                            <h5 class="card-title">${item.product_name}</h5>
+                            <div class="card-text">
+                                <p><strong>URL:</strong> <a href="${item.url}" target="_blank">${item.url}</a></p>
+                                <p><strong>Analysis Date:</strong> ${item.creation_time}</p>
+                                <p><strong>Score:</strong> ${item.score || 'N/A'}/100</p>
+                                <p><strong>Grade:</strong> <span class="${gradeColor}">${item.grade || 'N/A'}</span></p>
+                                <a href="/view_report/${item.id}" target="_blank" class="btn btn-primary mt-2">View Full Report</a>
+                            </div>
+                        </div>
+                    `;
+                    
+                    analyticsList.appendChild(resultCard);
+                });
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+                const analyticsList = document.getElementById('analyticsList');
+                analyticsList.innerHTML = `<div class="alert alert-danger">Error loading analytics: ${error.message}</div>`;
+            }
+        }
+
+        // Load analytics when page loads and when store tab is shown
+        document.addEventListener('DOMContentLoaded', loadAnalytics);
+        document.querySelector('button[data-bs-target="#store"]').addEventListener('click', loadAnalytics);
+        
+        // Load optimize image results when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadOptimizeImageResults();
+        });
+
+        // Load optimize image results when tab is shown
+        document.getElementById('optimize-image-tab').addEventListener('shown.bs.tab', function (e) {
+            loadOptimizeImageResults();
+        });
+
+        // Function to load optimize image results
+        async function loadOptimizeImageResults() {
+            try {
+                const response = await fetch('/optimize_image_results');
+                const results = await response.json();
+                
+                // Sort results by creation time (newest first)
+                results.sort((a, b) => {
+                    const timeA = new Date(a.creation_time);
+                    const timeB = new Date(b.creation_time);
+                    return timeB - timeA;
+                });
+                
+                // Clear existing results
+                const resultsContainer = document.getElementById('optimizeResults');
+                resultsContainer.innerHTML = '';
+                
+                // Add each result
+                results.forEach(result => {
+                    const resultCard = document.createElement('div');
+                    resultCard.className = 'card mb-3';
+                    resultCard.innerHTML = `
+                        <div class="card-body">
+                            <h5 class="card-title">Optimized Image ${result.id}</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Original</h6>
+                                    <img src="data:image/png;base64,${result.original_image}" class="img-fluid" alt="Original">
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Optimized</h6>
+                                    <img src="data:image/png;base64,${result.result_image}" class="img-fluid" alt="Optimized">
+                                </div>
+                            </div>
+                           <!-- <div class="mt-3">
+                                <h6>Prompt:</h6>
+                                <p class="text-muted">${result.prompt}</p>
+                            </div> -->
+                            <div class="mt-2">
+                                <small class="text-muted">Created: ${result.creation_time}</small>
+                            </div>
+                            <a href="data:image/png;base64,${result.result_image}" download="optimized_image.png" class="btn btn-primary">
+                                <i class="fas fa-download"></i> Download
+                            </a>
+                        </div>
+                    `;
+                    resultsContainer.appendChild(resultCard);
+                });
+            } catch (error) {
+                console.error('Error loading optimize image results:', error);
+                alert('Error loading optimize image results');
+            }
+        }
+
+        // Handle Optimize Image functionality
+        document.addEventListener('DOMContentLoaded', () => {
+            const optimizeImageForm = document.getElementById('optimizeImageForm');
+            const removeBackgroundBtn = document.getElementById('removeBackgroundBtn');
+            const optimizeBackgroundBtn = document.getElementById('optimizeBackgroundBtn');
+            const optimizeBackgroundWithAIBtn = document.getElementById('optimizeBackgroundWithAIBtn');
+            const generateVideoBtn = document.getElementById('generateVideoBtn');
+            const optimizeStatus = document.getElementById('optimizeStatus');
+            const optimizeStatusText = document.getElementById('optimizeStatusText');
+            const optimizeProgress = document.getElementById('optimizeProgress');
+            const optimizeResults = document.getElementById('optimizeResults');
+
+            // Function to handle image processing
+            async function processImages(files, prompt) {
+                optimizeStatus.style.display = 'block';
+                optimizeStatusText.textContent = 'Processing images...';
+                optimizeProgress.style.width = '0%';
+                optimizeResults.innerHTML = '';
+
+                try {
+                    for (let i = 0; i < files.length; i++) {
+                        const file = files[i];
+                        optimizeProgress.style.width = `${(i / files.length) * 100}%`;
+                        optimizeStatus.textContent = `Processing image ${i + 1}/${files.length}...`;
+
+                        const formData = new FormData();
+                        formData.append('image', file);
+                        formData.append('prompt', prompt);
+
+                        const response = await fetch('/optimize_image', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        const result = await response.json();
+                        if (!result.success) {
+                            throw new Error(result.message);
+                        }
+
+                        // Reload results to show new image
+                        await loadOptimizeImageResults();
+                    }
+
+                    optimizeProgress.style.width = '100%';
+                    optimizeStatus.textContent = 'All images processed successfully!';
+                } catch (error) {
+                    console.error('Error:', error);
+                    optimizeStatus.textContent = `Error: ${error.message}`;
+                    optimizeStatus.className = 'alert alert-danger';
+                }
+            }
+
+            // Handle Remove Background button click
+            removeBackgroundBtn.addEventListener('click', async () => {
+                const imageFiles = document.getElementById('imageFiles').files;
+                const imageUrls = document.getElementById('imageUrls').value.split('\n').filter(url => url.trim());
+                
+                if (imageFiles.length === 0 && imageUrls.length === 0) {
+                    alert('Please select images or enter image URLs');
+                    return;
+                }
+
+                const prompt = "change the background to white (including the text), and remember to keep the subjects in the image, high resolution, highly detailed, sharp focus." //"Change the background to a clean, bright white (including removing or replacing any text), while keeping the subjects in the image. Ensure the image is high resolution, highly detailed, and in sharp focus. Show the product from two of the most visually appealing angles, chosen to best highlight the design and features of the item, as in high-end product photography. The white background should enhance contrast and make the product stand out clearly."; //"change the background to white (including the text), and remember to keep the subjects in the image, high resolution, highly detailed, sharp focus.";
+                
+                // Process uploaded files
+                if (imageFiles.length > 0) {
+                    await processImages(Array.from(imageFiles), prompt);
+                }
+
+                // Process URLs
+                if (imageUrls.length > 0) {
+                    const urlImages = await Promise.all(
+                        imageUrls.map(async (url) => {
+                            try {
+                                const response = await fetch(url.trim());
+                                const blob = await response.blob();
+                                return new File([blob], 'image.png', { type: 'image/png' });
+                            } catch (error) {
+                                console.error('Error fetching image from URL:', error);
+                                return null;
+                            }
+                        })
+                    );
+                    const validImages = urlImages.filter(img => img !== null);
+                    if (validImages.length > 0) {
+                        await processImages(validImages, prompt);
+                    }
+                }
+            });
+
+            // Handle Optimize Background button click
+            optimizeBackgroundBtn.addEventListener('click', async () => {
+                const imageFiles = document.getElementById('imageFiles').files;
+                const imageUrls = document.getElementById('imageUrls').value.split('\n').filter(url => url.trim());
+                
+                if (imageFiles.length === 0 && imageUrls.length === 0) {
+                    alert('Please select images or enter image URLs');
+                    return;
+                }
+
+                const prompt = "Change the background to a more appealing and relevant setting that enhances the product's appeal, making it more enticing to potential buyers. Remove any text or logos, and ensure that the product and main objects in the image remain unchanged,with intricate details and in 8K resolution.";
+                
+                // Process uploaded files
+                if (imageFiles.length > 0) {
+                    await processImages(Array.from(imageFiles), prompt);
+                }
+
+                // Process URLs
+                if (imageUrls.length > 0) {
+                    const urlImages = await Promise.all(
+                        imageUrls.map(async (url) => {
+                            try {
+                                const response = await fetch(url.trim());
+                                const blob = await response.blob();
+                                return new File([blob], 'image.png', { type: 'image/png' });
+                            } catch (error) {
+                                console.error('Error fetching image from URL:', error);
+                                return null;
+                            }
+                        })
+                    );
+                    const validImages = urlImages.filter(img => img !== null);
+                    if (validImages.length > 0) {
+                        await processImages(validImages, prompt);
+                    }
+                }
+            });
+
+            // Handle Optimize Background with AI button click
+            optimizeBackgroundWithAIBtn.addEventListener('click', async () => {
+                const imageFiles = document.getElementById('imageFiles').files;
+                const imageUrls = document.getElementById('imageUrls').value.split('\n').filter(url => url.trim());
+                
+                if (imageFiles.length === 0 && imageUrls.length === 0) {
+                    alert('Please select images or enter image URLs');
+                    return;
+                }
+
+                optimizeStatus.style.display = 'block';
+                optimizeProgress.style.width = '0%';
+                optimizeStatus.textContent = 'Generating AI prompt...';
+
+                try {
+                    if (imageFiles.length > 0) {
+                        for (let i = 0; i < imageFiles.length; i++) {
+                            const file = imageFiles[i];
+                            optimizeProgress.style.width = `${(i / imageFiles.length) * 50}%`;
+                            optimizeStatus.textContent = `Generating AI prompt for image ${i + 1}/${imageFiles.length}...`;
+
+                            const formData = new FormData();
+                            formData.append('image', file);
+
+                            const promptResponse = await fetch('/generate_ai_prompt', {
+                                method: 'POST',
+                                body: formData
+                            });
+
+                            const promptResult = await promptResponse.json();
+                            if (!promptResult.success) {
+                                throw new Error(promptResult.message);
+                            }
+
+                            optimizeProgress.style.width = `${50 + (i / imageFiles.length) * 50}%`;
+                            optimizeStatus.textContent = `Optimizing image ${i + 1}/${imageFiles.length}...`;
+
+                            const optimizeFormData = new FormData();
+                            optimizeFormData.append('image', file);
+                            optimizeFormData.append('prompt', promptResult.prompt);
+
+                            const optimizeResponse = await fetch('/optimize_background_with_ai', {
+                                method: 'POST',
+                                body: optimizeFormData
+                            });
+
+                            const optimizeResult = await optimizeResponse.json();
+                            if (!optimizeResult.success) {
+                                throw new Error(optimizeResult.message);
+                            }
+
+                            // Reload results to show new image
+                            await loadOptimizeImageResults();
+                        }
+                    }
+
+                    if (imageUrls.length > 0) {
+                        for (let i = 0; i < imageUrls.length; i++) {
+                            const url = imageUrls[i].trim();
+                            optimizeProgress.style.width = `${(i / imageUrls.length) * 50}%`;
+                            optimizeStatus.textContent = `Processing URL ${i + 1}/${imageUrls.length}...`;
+
+                            try {
+                                const response = await fetch(url);
+                                const blob = await response.blob();
+                                const file = new File([blob], 'image.png', { type: 'image/png' });
+
+                                const formData = new FormData();
+                                formData.append('image', file);
+
+                                const promptResponse = await fetch('/generate_ai_prompt', {
+                                    method: 'POST',
+                                    body: formData
+                                });
+
+                                const promptResult = await promptResponse.json();
+                                if (!promptResult.success) {
+                                    throw new Error(promptResult.message);
+                                }
+
+                                optimizeProgress.style.width = `${50 + (i / imageUrls.length) * 50}%`;
+                                optimizeStatus.textContent = `Optimizing URL image ${i + 1}/${imageUrls.length}...`;
+
+                                const optimizeFormData = new FormData();
+                                optimizeFormData.append('image', file);
+                                optimizeFormData.append('prompt', promptResult.prompt);
+
+                                const optimizeResponse = await fetch('/optimize_background_with_ai', {
+                                    method: 'POST',
+                                    body: optimizeFormData
+                                });
+
+                                const optimizeResult = await optimizeResponse.json();
+                                if (!optimizeResult.success) {
+                                    throw new Error(optimizeResult.message);
+                                }
+
+                                // Reload results to show new image
+                                await loadOptimizeImageResults();
+                            } catch (error) {
+                                console.error(`Error processing URL ${url}:`, error);
+                                alert(`Error processing URL ${url}: ${error.message}`);
+                            }
+                        }
+                    }
+
+                    optimizeProgress.style.width = '100%';
+                    optimizeStatus.textContent = 'All images processed successfully!';
+                } catch (error) {
+                    console.error('Error:', error);
+                    optimizeStatus.textContent = `Error: ${error.message}`;
+                    optimizeStatus.className = 'alert alert-danger';
+                }
+            });
+
+            // Handle Generate Video button click
+            generateVideoBtn.addEventListener('click', async () => {
+                const imageFiles = document.getElementById('imageFiles').files;
+                const imageUrls = document.getElementById('imageUrls').value.split('\n').filter(url => url.trim());
+                
+                if (imageFiles.length === 0 && imageUrls.length === 0) {
+                    alert('Please select images or enter image URLs');
+                    return;
+                }
+
+                optimizeStatus.style.display = 'block';
+                optimizeStatusText.textContent = 'Generating video...';
+                optimizeProgress.style.width = '0%';
+
+                try {
+                    const formData = new FormData();
+                    
+                    // Add uploaded files
+                    for (let i = 0; i < imageFiles.length; i++) {
+                        formData.append('images', imageFiles[i]);
+                    }
+
+                    // Add URLs
+                    imageUrls.forEach(url => {
+                        formData.append('image_urls', url.trim());
+                    });
+
+                    const response = await fetch('/generate_video', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        // Display video result
+                        optimizeResults.innerHTML = `
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h5 class="card-title">Generated Video</h5>
+                                        <video controls class="img-fluid mb-2">
+                                            <source src="${result.video_path}" type="video/mp4">
+                                            Your browser does not support the video tag.
+                                        </video>
+                                        <a href="${result.video_path}" download="generated_video.mp4" class="btn btn-primary">Download Video</a>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        throw new Error(result.message || 'Failed to generate video');
+                    }
+                } catch (error) {
+                    console.error('Error generating video:', error);
+                    optimizeResults.innerHTML = `
+                        <div class="col-12">
+                            <div class="alert alert-danger">Error generating video: ${error.message}</div>
+                        </div>
+                    `;
+                } finally {
+                    optimizeStatus.style.display = 'none';
+                }
+            });
+        });
+        
+        // Load recordings list
+        async function loadRecordings() {
+            try {
+                const response = await fetch('/recordings');
+                const recordings = await response.json();
+                const recordingsList = document.getElementById('recordingsList');
+                recordingsList.innerHTML = '';
+                
+                recordings.forEach(recording => {
+                    const recordingDiv = document.createElement('div');
+                    recordingDiv.className = 'mb-3 p-3 border rounded';
+                    
+                    // Tạo phần chứa video và thông tin
+                    const mediaContainer = document.createElement('div');
+                    mediaContainer.className = 'd-flex flex-column flex-md-row align-items-start mb-3';
+                    
+                    // Video container
+                    const videoContainer = document.createElement('div');
+                    videoContainer.className = 'flex-shrink-0 me-md-3 mb-3 mb-md-0';
+                    videoContainer.style.width = '100%';
+                    videoContainer.style.maxWidth = '600px';
+                    
+                    const video = document.createElement('video');
+                    video.src = recording.path;
+                    video.controls = true;
+                    video.style.width = '100%';
+                    videoContainer.appendChild(video);
+                    
+                    // Thông tin container
+                    const infoContainer = document.createElement('div');
+                    infoContainer.className = 'flex-grow-1';
+                    
+                    // Thêm thông tin ngày giờ tạo
+                    const creationInfo = document.createElement('div');
+                    creationInfo.className = 'mb-2';
+                    creationInfo.innerHTML = `<strong>Thời gian tạo:</strong> ${recording.creation_time || "N/A"}`;
+                    
+                    // Thêm tên file
+                    const nameInfo = document.createElement('div');
+                    nameInfo.className = 'mb-2';
+                    nameInfo.innerHTML = `<strong>Tên file:</strong> ${recording.name}`;
+                    
+                    infoContainer.appendChild(creationInfo);
+                    infoContainer.appendChild(nameInfo);
+                    
+                    // Thêm vào container chính
+                    mediaContainer.appendChild(videoContainer);
+                    mediaContainer.appendChild(infoContainer);
+                    
+                    // Tạo phần chứa các nút
+                    const buttonsDiv = document.createElement('div');
+                    buttonsDiv.className = 'mt-2 d-flex flex-wrap';
+                    
+                    const analyzeButton = document.createElement('button');
+                    analyzeButton.className = 'btn btn-primary me-2 mb-2';
+                    analyzeButton.textContent = 'Analyze Video';
+                    analyzeButton.onclick = () => analyzeVideo(recording.path);
+                    
+                    const viewAnalysisButton = document.createElement('button');
+                    viewAnalysisButton.className = 'btn btn-info me-2 mb-2';
+                    viewAnalysisButton.textContent = 'View Analysis';
+                    viewAnalysisButton.onclick = () => viewAnalysis(recording.path);
+                    
+                    // Download button
+                    const downloadButton = document.createElement('a');
+                    downloadButton.className = 'btn btn-success me-2 mb-2';
+                    downloadButton.textContent = 'Download';
+                    downloadButton.href = recording.path;
+                    downloadButton.download = recording.name;
+                    
+                    // Show or hide View Analysis button based on analysis status
+                    viewAnalysisButton.style.display = recording.has_analysis ? 'inline-block' : 'none';
+                    
+                    buttonsDiv.appendChild(analyzeButton);
+                    buttonsDiv.appendChild(viewAnalysisButton);
+                    buttonsDiv.appendChild(downloadButton);
+                    
+                    recordingDiv.appendChild(mediaContainer);
+                    recordingDiv.appendChild(buttonsDiv);
+                    recordingsList.appendChild(recordingDiv);
+                });
+            } catch (error) {
+                console.error('Error loading recordings:', error);
+            }
+        }
+        
+        // Analyze video function
+        async function analyzeVideo(videoPath) {
+            try {
+                const button = event.target;
+                const buttonsDiv = button.parentElement;
+                const viewAnalysisButton = buttonsDiv.querySelector('.btn-info');
+                
+                // Disable analyze button and show loading state
+                button.disabled = true;
+                button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Analyzing...';
+                
+                const response = await fetch('/analyze_video', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ video_path: videoPath })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Show analysis result
+                    showAnalysisModal(result.analysis);
+                    // Show View Analysis button
+                    viewAnalysisButton.style.display = 'inline-block';
+                } else {
+                    alert('Failed to analyze video: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while analyzing the video.');
+            } finally {
+                // Reset button state
+                button.disabled = false;
+                button.textContent = 'Analyze Video';
+            }
+        }
+        
+        // View video analysis
+        async function viewAnalysis(videoPath) {
+            try {
+                const response = await fetch('/analyze_video', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ video_path: videoPath })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAnalysisModal(result.analysis);
+                } else {
+                    alert('Failed to get analysis: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while getting the analysis.');
+            }
+        }
+        
+        // Show analysis in modal
+        function showAnalysisModal(analysis) {
+            const modal = document.getElementById('analysisModal');
+            const modalTitle = document.getElementById('analysisModalLabel');
+            const modalBody = document.getElementById('analysisContent');
+            
+            // Set modal title and content
+            modalTitle.textContent = 'Video Analysis Result';
+            modalBody.textContent = analysis;
+            
+            // Show the modal
+            const bsModal = new bootstrap.Modal(modal);
+            bsModal.show();
+        }
+        
+        // Handle recording form submission
+        document.getElementById('recordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const url = document.getElementById('url').value;
+            const statusDiv = document.getElementById('recordingStatus');
+            const recordButton = document.getElementById('recordButton');
+            const progressBar = document.getElementById('recordingProgress');
+            
+            // Disable button and show loading state
+            recordButton.disabled = true;
+            recordButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Recording...';
+            statusDiv.style.display = 'block';
+            progressBar.style.width = '0%';
+            progressBar.setAttribute('aria-valuenow', 0);
+            
+            // Set up SSE before fetch to ensure we don't miss initial progress updates
+            const eventSource = new EventSource('/record_progress');
+            eventSource.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data.replace(/'/g, '"')); // Fix single quotes if present
+                    const percentage = data.percentage || 0;
+                    console.log('Progress update:', percentage);
+                    progressBar.style.width = `${percentage}%`;
+                    progressBar.setAttribute('aria-valuenow', percentage);
+                    
+                    if (percentage >= 100) {
+                        eventSource.close();
+                    }
+                } catch (error) {
+                    console.error('Error parsing SSE data:', error, event.data);
+                }
+            };
+            
+            eventSource.onerror = (error) => {
+                console.error('SSE error:', error);
+                eventSource.close();
+            };
+            
+            try {
+                const response = await fetch('/record', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ url })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Recording completed successfully!');
+                    // Đảm bảo thanh progress hiển thị 100%
+                    progressBar.style.width = '100%';
+                    progressBar.setAttribute('aria-valuenow', 100);
+                    // Tải lại danh sách recordings để hiển thị video mới
+                    await loadRecordings();
+                } else {
+                    alert('Failed to record webpage: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while recording the webpage.');
+                eventSource.close();
+            } finally {
+                // Reset button state
+                recordButton.disabled = false;
+                recordButton.innerHTML = 'Start Recording';
+                statusDiv.style.display = 'none';
+            }
+        });
+
+        // Handle image generation form submission
+        document.getElementById('imageForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            
+            try {
+                const response = await fetch('/', {
+                method: 'POST',
+                body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.image) {
+                    // Display image
+                    document.getElementById('resultImage').src = `data:image/png;base64,${result.image}`;
+                    document.getElementById('resultImage').style.display = 'block';
+                    document.getElementById('resultText').textContent = '';
+                } else if (result.text) {
+                    // Display text
+                    document.getElementById('resultImage').style.display = 'none';
+                    document.getElementById('resultText').textContent = result.text;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while generating the image.');
+            }
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Enable Bootstrap Tabs
+            const tabEls = document.querySelectorAll('button[data-bs-toggle="tab"]');
+            tabEls.forEach(tabEl => {
+                tabEl.addEventListener('shown.bs.tab', event => {
+                    if (event.target.id === 'recording-tab') {
+                        loadRecordings();
+                    } else if (event.target.id === 'store-tab') {
+                        loadAnalytics();
+                    } else if (event.target.id === 'upload-video-tab') {
+                        loadUploadedVideos();
+                    }
+                });
+            });
+            
+            // Load initial data
+            loadRecordings();
+            loadAnalytics();
+            
+            // Setup video file preview
+            const videoFileInput = document.getElementById('videoFile');
+            const videoPreview = document.getElementById('videoPreview');
+            const videoPreviewContainer = document.getElementById('videoPreviewContainer');
+            
+            if (videoFileInput) {
+                videoFileInput.addEventListener('change', function() {
+                    if (this.files && this.files[0]) {
+                        const file = this.files[0];
+                        // Check file size (50MB max)
+                        if (file.size > 50 * 1024 * 1024) {
+                            alert('Video file size exceeds 50MB limit. Please select a smaller file.');
+                            this.value = '';
+                            videoPreviewContainer.style.display = 'none';
+                            return;
+                        }
+                        
+                        // Show video preview
+                        const objectURL = URL.createObjectURL(file);
+                        videoPreview.src = objectURL;
+                        videoPreviewContainer.style.display = 'block';
+                        
+                        // Clean up the URL when done
+                        videoPreview.onload = function() {
+                            URL.revokeObjectURL(objectURL);
+                        };
+                    }
+                });
+            }
+            
+            // Handle video upload form
+            const uploadVideoForm = document.getElementById('uploadVideoForm');
+            if (uploadVideoForm) {
+                uploadVideoForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    
+                    const videoFile = document.getElementById('videoFile').files[0];
+                    if (!videoFile) {
+                        alert('Please select a video file');
+                        return;
+                    }
+                    
+                    const formData = new FormData();
+                    formData.append('videoFile', videoFile);
+                    formData.append('analysisPrompt', document.getElementById('analysisPrompt').value || '');
+                    
+                    // Show upload status
+                    const statusDiv = document.getElementById('uploadStatus');
+                    const statusText = document.getElementById('uploadStatusText');
+                    const uploadButton = document.getElementById('uploadButton');
+                    const progressBar = document.getElementById('uploadProgress');
+                    
+                    statusDiv.style.display = 'block';
+                    uploadButton.disabled = true;
+                    uploadButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Uploading...';
+                    
+                    try {
+                        // Simulate upload progress
+                        let progress = 0;
+                        const interval = setInterval(() => {
+                            progress += 5;
+                            if (progress > 95) {
+                                clearInterval(interval);
+                            }
+                            progressBar.style.width = `${progress}%`;
+                            progressBar.setAttribute('aria-valuenow', progress);
+                        }, 200);
+                        
+                        const response = await fetch('/upload_video', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        clearInterval(interval);
+                        progressBar.style.width = '100%';
+                        progressBar.setAttribute('aria-valuenow', 100);
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            statusText.textContent = 'Upload completed, analyzing...';
+                            progressBar.classList.remove('bg-info');
+                            progressBar.classList.add('bg-success');
+                            
+                            // Wait for analysis to complete
+                            const analysisResponse = await fetch('/analyze_uploaded_video', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ video_path: result.video_path })
+                            });
+                            
+                            const analysisResult = await analysisResponse.json();
+                            
+                            if (analysisResult.success) {
+                                // Show analysis result
+                                showAnalysisModal(analysisResult.analysis);
+                                
+                                // Reset form
+                                uploadVideoForm.reset();
+                                videoPreviewContainer.style.display = 'none';
+                                
+                                // Load updated videos list
+                                await loadUploadedVideos();
+                            } else {
+                                alert('Failed to analyze video: ' + analysisResult.message);
+                            }
+                        } else {
+                            alert('Failed to upload video: ' + result.message);
+                            progressBar.classList.add('bg-danger');
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        alert('An error occurred while uploading the video.');
+                        progressBar.classList.add('bg-danger');
+                    } finally {
+                        uploadButton.disabled = false;
+                        uploadButton.innerHTML = 'Upload & Analyze';
+                        
+                        // Hide status after 3 seconds
+                        setTimeout(() => {
+                            statusDiv.style.display = 'none';
+                            progressBar.classList.remove('bg-success', 'bg-info', 'bg-danger');
+                            progressBar.style.width = '0%';
+                            progressBar.setAttribute('aria-valuenow', 0);
+                        }, 3000);
+                    }
+                });
+            }
+        });
+        
+        // Load uploaded videos list
+        async function loadUploadedVideos() {
+            try {
+                const response = await fetch('/uploaded_videos');
+                const videos = await response.json();
+                const videosList = document.getElementById('uploadedVideosList');
+                videosList.innerHTML = '';
+                
+                videos.forEach(video => {
+                    const videoDiv = document.createElement('div');
+                    videoDiv.className = 'mb-3 p-3 border rounded';
+                    
+                    // Tạo phần chứa video và thông tin
+                    const mediaContainer = document.createElement('div');
+                    mediaContainer.className = 'd-flex flex-column flex-md-row align-items-start mb-3';
+                    
+                    // Video container
+                    const videoContainer = document.createElement('div');
+                    videoContainer.className = 'flex-shrink-0 me-md-3 mb-3 mb-md-0';
+                    videoContainer.style.width = '100%';
+                    videoContainer.style.maxWidth = '400px';
+                    
+                    const videoElement = document.createElement('video');
+                    videoElement.src = video.path;
+                    videoElement.controls = true;
+                    videoElement.style.width = '100%';
+                    videoContainer.appendChild(videoElement);
+                    
+                    // Thông tin container
+                    const infoContainer = document.createElement('div');
+                    infoContainer.className = 'flex-grow-1';
+                    
+                    // Thêm thông tin ngày giờ tải lên
+                    const uploadInfo = document.createElement('div');
+                    uploadInfo.className = 'mb-2';
+                    uploadInfo.innerHTML = `<strong>Tải lên:</strong> ${video.upload_time || "N/A"}`;
+                    
+                    // Thêm tên file
+                    const nameInfo = document.createElement('div');
+                    nameInfo.className = 'mb-2';
+                    nameInfo.innerHTML = `<strong>Tên file:</strong> ${video.name}`;
+                    
+                    infoContainer.appendChild(uploadInfo);
+                    infoContainer.appendChild(nameInfo);
+                    
+                    // Thêm vào container chính
+                    mediaContainer.appendChild(videoContainer);
+                    mediaContainer.appendChild(infoContainer);
+                    
+                    // Tạo phần chứa các nút
+                    const buttonsDiv = document.createElement('div');
+                    buttonsDiv.className = 'mt-2 d-flex flex-wrap';
+                    
+                    // Analyze button
+                    const analyzeButton = document.createElement('button');
+                    analyzeButton.className = 'btn btn-primary me-2 mb-2';
+                    analyzeButton.textContent = 'Analyze Video';
+                    analyzeButton.onclick = () => analyzeUploadedVideo(video.path);
+                    
+                    // View Analysis button
+                    const viewAnalysisButton = document.createElement('button');
+                    viewAnalysisButton.className = 'btn btn-info me-2 mb-2';
+                    viewAnalysisButton.textContent = 'View Analysis';
+                    viewAnalysisButton.onclick = () => viewUploadedVideoAnalysis(video.path);
+                    
+                    // Download button
+                    const downloadButton = document.createElement('a');
+                    downloadButton.className = 'btn btn-success me-2 mb-2';
+                    downloadButton.textContent = 'Download';
+                    downloadButton.href = video.path;
+                    downloadButton.download = video.name;
+                    
+                    // Show or hide View Analysis button based on analysis status
+                    viewAnalysisButton.style.display = video.has_analysis ? 'inline-block' : 'none';
+                    
+                    buttonsDiv.appendChild(analyzeButton);
+                    buttonsDiv.appendChild(viewAnalysisButton);
+                    buttonsDiv.appendChild(downloadButton);
+                    
+                    videoDiv.appendChild(mediaContainer);
+                    videoDiv.appendChild(buttonsDiv);
+                    videosList.appendChild(videoDiv);
+                });
+                
+                if (videos.length === 0) {
+                    const noVideosMsg = document.createElement('p');
+                    noVideosMsg.className = 'text-muted';
+                    noVideosMsg.textContent = 'No uploaded videos yet.';
+                    videosList.appendChild(noVideosMsg);
+                }
+            } catch (error) {
+                console.error('Error loading uploaded videos:', error);
+            }
+        }
+        
+        // Analyze uploaded video
+        async function analyzeUploadedVideo(videoPath) {
+            try {
+                const button = event.target;
+                const buttonsDiv = button.parentElement;
+                const viewAnalysisButton = buttonsDiv.querySelector('.btn-info');
+                
+                // Disable analyze button and show loading state
+                button.disabled = true;
+                button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Analyzing...';
+                
+                const response = await fetch('/analyze_uploaded_video', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ video_path: videoPath })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Show analysis result
+                    showAnalysisModal(result.analysis);
+                    // Show View Analysis button
+                    viewAnalysisButton.style.display = 'inline-block';
+                } else {
+                    alert('Failed to analyze video: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while analyzing the video.');
+            } finally {
+                // Reset button state
+                button.disabled = false;
+                button.textContent = 'Analyze Video';
+            }
+        }
+        
+        // View uploaded video analysis
+        async function viewUploadedVideoAnalysis(videoPath) {
+            try {
+                const response = await fetch('/analyze_uploaded_video', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ video_path: videoPath })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAnalysisModal(result.analysis);
+                } else {
+                    alert('Failed to get analysis: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while getting the analysis.');
+            }
+        }
+    </script>
+</body>
+</html>

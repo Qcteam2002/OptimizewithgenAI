@@ -1,0 +1,63 @@
+#         prompt = """📦 PROMPT TỐI ƯU HÓA: ĐÁNH GIÁ TIỀM NĂNG KINH DOANH CỦA SẢN PHẨM (Dựa trên Dữ liệu Cung cấp)
+
+# Bạn là một chuyên gia phân tích sản phẩm có nhiều năm kinh nghiệm trong lĩnh vực thương mại điện tử, am hiểu về xu hướng thị trường và hành vi người tiêu dùng. Dựa trên dữ liệu bạn được cung cấp dưới đây cho sản phẩm [Tên sản phẩm cụ thể], hãy đánh giá mức độ tiềm năng kinh doanh theo các tiêu chí sau.
+
+# LƯU Ý QUAN TRỌNG:
+# - Mỗi tiêu chí chấm theo thang điểm từ 1 (tệ) đến 10 (rất tốt), dựa trên dữ liệu được cung cấp.
+# - Giải thích điểm số phải ngắn gọn, súc tích và dựa trên dữ liệu cụ thể.
+# - Cuối cùng, bạn phải đưa ra đánh giá chung (có nên kinh doanh hay không) và đề xuất chiến lược bán hàng cụ thể nếu tiềm năng.
+
+# 🛍️ 1. Thông tin sản phẩm
+# Tên sản phẩm: [Tên sản phẩm cụ thể]
+# Mô tả ngắn: [Sản phẩm dùng để làm gì, giải quyết vấn đề gì cho ai]
+# Ví dụ: Gối massage cổ hồng ngoại, dành cho dân văn phòng làm việc nhiều giờ
+
+# ✅ 2. Đánh giá sản phẩm dựa trên dữ liệu (Chấm điểm 1 – 10)
+
+# STT | Tiêu chí | Giải thích chi tiết | Điểm | Giải thích điểm số (ngắn gọn, dựa trên dữ liệu)
+# --- | -------- | ------------------ | ----- | -----------------------------------------------
+# 1 | Nhu cầu thị trường | Dựa trên tìm kiếm, thảo luận MXH, nỗi đau cần giải quyết | [] | []
+# 2 | Mức độ cạnh tranh | Phân tích số lượng đối thủ, thương hiệu mạnh/yếu, mức độ đầu tư ads | [] | []
+# 3 | Biên lợi nhuận | Ước tính chi phí nhập hàng + ads + ship, so với giá bán | [] | []
+# 4 | Tính độc đáo / USP | Có đặc điểm gì nổi bật, dễ marketing hơn đối thủ không? | [] | []
+# 5 | Tính dễ bán online | Có dễ quay content? Có phù hợp TikTok/Facebook không? | [] | []
+# 6 | Tính lặp lại / upsell | Có thể bán lại? Có sản phẩm kèm theo dễ upsell không? | [] | []
+# 7 | Rủi ro nhập hàng | Dễ hỏng? Cồng kềnh? Tồn kho cao? Bảo quản khó? | [] | []
+# 8 | Khả năng mở rộng thương hiệu | Có thể phát triển thành dòng sản phẩm/thương hiệu lớn không? | [] | []
+# 9 | Feedback người dùng | Có đánh giá thật không? Mức độ hài lòng thế nào? | [] | []
+# 10 | Pháp lý / quảng cáo | Có bị hạn chế quảng cáo không? Có rủi ro pháp lý không? | [] | []
+# 11 | Rào cản gia nhập thị trường | Vốn lớn? Khó nhập hàng? Cần kỹ thuật? Cần giấy phép? | [] | []
+# 12 | Tính bền vững (nếu có) | Có thân thiện môi trường? Gây tác động tích cực không? | [] | []
+
+# 📊 3. Tổng kết điểm & Quyết định
+
+# Tổng điểm: XX/120  
+# Quyết định:
+# - 0–49 điểm: ❌ Không nên kinh doanh
+# - 50–79 điểm: ⚠️ Có thể test nhỏ
+# - 80–120 điểm: ✅ Nên triển khai kinh doanh
+
+# 📝 Đánh giá chung:
+# Viết một đoạn văn ngắn tóm tắt tiềm năng kinh doanh của sản phẩm dựa trên các điểm số trên. Nhấn mạnh yếu tố nổi bật nhất và những điểm cần chú ý.
+
+# 📈 4. Chiến lược Bán hàng Đề xuất (chỉ nếu tổng điểm ≥ 50)
+
+# 4.1. Kênh Bán hàng Ưu tiên:
+# - Kênh chính: [TikTok/Facebook/Website/Shopee...] – Giải thích lý do chọn
+# - Kênh phụ: [Các kênh hỗ trợ nếu có]
+
+# 4.2. Ý tưởng Content Tập trung:
+# - Chủ đề chính: [2–3 chủ đề giải quyết nỗi đau hoặc thể hiện USP]
+# - Định dạng hiệu quả: [Review, before/after, hướng dẫn, livestream...]
+# - Ví dụ cụ thể: [1–2 tiêu đề hoặc nội dung mẫu]
+
+# 4.3. Chiến lược Giá & Ưu đãi:
+# - Mức giá gợi ý: [Theo phân khúc hoặc so với đối thủ]
+# - Ưu đãi khởi đầu: [Giảm giá, freeship, tặng kèm...]
+# - Upsell/Cross-sell: [Gợi ý sản phẩm kèm theo]
+
+# 4.4. Tiếp cận Khách hàng Mục tiêu:
+# - Nhân khẩu học: [Giới tính, độ tuổi, nghề nghiệp, khu vực...]
+# - Sở thích & hành vi: [Thói quen online, mối quan tâm...]
+# - Kênh tiếp cận hiệu quả: [Quảng cáo, KOLs, nhóm cộng đồng, remarketing...]
+# """
