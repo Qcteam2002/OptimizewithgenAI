@@ -34,7 +34,9 @@ CORS(app, resources={
     }
 })
 app.secret_key = os.urandom(24)
-client = genai.Client(api_key="AIzaSyAh_9Ku-QjqJ7o-gEGUvsK8dCNyygfD-q8")
+gemini.api_key = os.getenv('GEMINI_API_KEY')
+# client = genai.Client(api_key="AIzaSyAh_9Ku-QjqJ7o-gEGUvsK8dCNyygfD-q8")
+client = genai.Client(gemini.api_key)
 
 # Load OpenAI API key from environment variable
 openai.api_key = os.getenv('OPENAI_API_KEY')
@@ -1917,6 +1919,83 @@ def optimize_background():
     except Exception as e:
         print(f"❌ Error in optimize_background: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/openai/faqs', methods=['POST'])
+def openai_faqs():
+    try:
+        data = request.get_json()
+        product_id      = data.get('id')
+        title           = data.get('title')
+        description     = data.get('description')
+        featured_media  = data.get('featuredMedia')
+
+        # Validate
+        if not all([product_id, title, description, featured_media]):
+            return jsonify({'error': 'Missing required fields'}), 400
+
+        # Build prompt cho FAQ
+        faq_prompt = f"""
+            You are an expert eCommerce assistant. Generate a product-specific FAQ section in strict JSON format, exactly matching this schema:
+
+            {{
+            "heading": "<Section Heading>",
+            "description": "<Short intro description>",
+            "accordions": [
+                {{
+                "title": "<Question 1>",
+                "content": "<Answer 1>"
+                }},
+                {{
+                "title": "<Question 2>",
+                "content": "<Answer 2>"
+                }}
+                // …at least 4 FAQs
+            ]
+            }}
+
+            Product details:
+            - Title: {title}
+            - Description: {description}
+            - Media URL: {featured_media}
+
+            Return only the JSON object, no extra text or markdown.
+        """
+
+        # Gọi OpenAI
+        response = openai.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You create concise, on‑point product FAQs."},
+                {"role": "user",   "content": faq_prompt}
+            ]
+        )
+
+        # Lấy và clean raw content
+        raw = response.choices[0].message.content
+        raw = raw.strip().replace('```json', '').replace('```', '').strip()
+
+        # Parse JSON
+        try:
+            faq_data = json.loads(raw)
+        except json.JSONDecodeError:
+            print("❌ Invalid FAQ JSON:", raw)
+            return jsonify({'error': 'FAQ JSON is invalid.'}), 500
+
+        # Lưu vào database (chỉ field faqs)
+        save_resp = requests.post(SAVE_PRODUCT_API, json={
+            'id':   product_id,
+            'faqs': faq_data
+        })
+        save_result = save_resp.json()
+        print("✅ FAQs saved to DB:", save_result)
+
+        # Trả về client
+        return jsonify({'faqs': faq_data})
+
+    except Exception as e:
+        print(f"❌ Error creating FAQs: {e}")
+        return jsonify({'error': 'Server error when creating FAQs'}), 500
+
 
 if __name__ == '__main__':
     app.run(port=5004, debug=True)
