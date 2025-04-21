@@ -19,15 +19,49 @@ import tempfile
 from werkzeug.utils import secure_filename
 import requests
 import subprocess
+import openai
+from flask_cors import CORS
+import re
+from promptoptimize import generate_prompt
 
 app = Flask(__name__)
+# CORS configuration
+CORS(app, resources={
+    r"/api/*": {
+        "origins": ["*"],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
 app.secret_key = os.urandom(24)
 client = genai.Client(api_key="AIzaSyAh_9Ku-QjqJ7o-gEGUvsK8dCNyygfD-q8")
+
+# Load OpenAI API key from environment variable
+openai.api_key = os.getenv('OPENAI_API_KEY')
+
+# Load library data from JSON file
+library_data = {}
+try:
+    with open('library.json', 'r', encoding='utf-8') as f:
+        library_data = json.load(f)
+    print("📚 Library data loaded successfully!")
+except Exception as e:
+    print(f"❌ Error loading library data: {str(e)}")
+
+# API base URL and endpoints
+API_BASE_URL = os.getenv('API_BASE_URL')
+SAVE_PRODUCT_API = f"{API_BASE_URL}/api/save-optimized-product"
+SAVE_OPTIMIZED_IMAGE_API = f"{API_BASE_URL}/api/save-optimized-image"
 
 # Tạo thư mục output nếu chưa tồn tại
 OUTPUT_DIR = 'output'
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
+
+# Tạo thư mục cho ảnh đã tối ưu
+OPTIMIZED_IMAGES_DIR = os.path.join(OUTPUT_DIR, 'optimized_images')
+if not os.path.exists(OPTIMIZED_IMAGES_DIR):
+    os.makedirs(OPTIMIZED_IMAGES_DIR)
 
 # Global variable to store recording progress
 recording_progress = 0
@@ -1392,7 +1426,7 @@ Không đặt sản phẩm vào bối cảnh sai công năng (ví dụ: móc kh�
 
 ⚠️ Cảnh báo thêm:
 Với các sản phẩm trang sức hoặc phụ kiện đeo trên người (ví dụ: nhẫn, vòng cổ, vòng tay, bông tai), hình ảnh cần có người mẫu thật với kết cấu da rõ ràng, ánh sáng thật, bóng đổ tự nhiên, tóc thật hoặc được xử lý tinh tế.
-Tránh mọi hình ảnh “mịn bất thường”, không có lỗ chân lông, thiếu chi tiết da, thiếu shadow, hoặc bị “AI hoá” gây cảm giác không chân thực. Ví dụ đúng 1 – Móc khóa thú bông:
+Tránh mọi hình ảnh "mịn bất thường", không có lỗ chân lông, thiếu chi tiết da, thiếu shadow, hoặc bị "AI hoá" gây cảm giác không chân thực. Ví dụ đúng 1 – Móc khóa thú bông:
 "Hãy tối ưu lại background của sản phẩm này thành một chiếc balo học sinh hoặc túi xách nữ trong bối cảnh đời sống thường ngày như trường học, quán cà phê, hoặc chuyến du lịch. Treo sản phẩm ở vị trí dễ nhìn, thể hiện rõ kích thước thật, giữ nguyên màu sắc và chất liệu lông bông mềm mại. Ánh sáng chân thực, không dùng hiệu ứng hoạt hình hay nhân tạo.
 Với các sản phẩm có kích thước cụ thể như túi xách, balo, tranh, đèn, đồ nội thất, phụ kiện đeo, hình ảnh phải thể hiện đúng tỷ lệ kích thước thực tế khi đặt cạnh người hoặc vật thể xung quanh (tay, người, bàn ghế...).
 Không được phóng to hoặc thu nhỏ gây sai lệch cảm nhận về kích thước thật, làm giảm độ tin cậy sản phẩm.    "
@@ -1539,8 +1573,351 @@ def save_optimize_image_data():
     except Exception as e:
         print(f"[SAVE] Error saving optimize image data: {str(e)}")
 
-if __name__ == "__main__":
-    # Load optimize image data when starting up
-    load_optimize_image_data()
-    app.run(debug=True, port=5002)
+@app.route('/api/openai', methods=['POST'])
+def openai_endpoint():
+    try:
+        data = request.get_json()
+        id = data.get('id')
+        title = data.get('title')
+        description = data.get('description')
+        featured_media = data.get('featuredMedia')
+        image = data.get('image')
+
+        if not all([id, title, description]):
+            print("❌ Error: Missing ID, title or description!")
+            return jsonify({'error': 'Missing ID, title or description!'}), 400
+
+        # Generate prompt
+        prompt = generate_prompt(title, description, library_data, featured_media, image)
+        print("📩 JSON Prompt sent to OpenAI:", prompt)
+
+        # Call OpenAI API with new syntax
+        response = openai.chat.completions.create(
+            model="gpt-4o-mini",  # Using gpt-4o-mini model
+            messages=[
+                {"role": "system", "content": "Bạn là một chuyên gia content SEO viết content cho các sàn phẩm của ecommerce."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+
+        raw_content = response.choices[0].message.content
+        # Clean up JSON response
+        raw_content = raw_content.strip().replace('```json', '').replace('```', '').strip()
+
+        try:
+            ai_response = json.loads(raw_content)
+            print("✅ OpenAI returned valid JSON:", ai_response)
+        except json.JSONDecodeError:
+            print("❌ Invalid JSON:", raw_content)
+            return jsonify({'error': 'OpenAI response is not valid JSON.'}), 500
+
+        # Save to database
+        save_response = requests.post(SAVE_PRODUCT_API, json={
+            'id': id,
+            # 'optimizedTitle': ai_response['optimizedTitle'],
+            # 'optimizedDescription': ai_response['optimizedDescription'],
+            'gridView': ai_response['gridView']
+        })
+
+        save_result = save_response.json()
+        print("📩 Database save result:", save_result)
+
+        return jsonify({
+            'success': True,
+            'message': 'AI data processed and saved to DB!',
+            'data': ai_response['gridView'],
+            'dbResult': save_result
+        })
+
+    except Exception as e:
+        print(f"❌ Error calling OpenAI: {str(e)}")
+        return jsonify({'error': 'Failed to fetch data from OpenAI'}), 500
+
+@app.route('/api/openai/reviews', methods=['POST'])
+def openai_reviews():
+    try:
+        data = request.get_json()
+        id = data.get('id')
+        title = data.get('title')
+        description = data.get('description')
+        featured_media = data.get('featuredMedia')
+
+        if not all([id, title, description, featured_media]):
+            return jsonify({'error': 'Missing required fields'}), 400
+
+        review_prompt = f"""
+        Answer in English.
+            You are an expert eCommerce marketer, specializing in creating persuasive product highlights that significantly increase purchase conversions.
+
+            👉 Your task:
+            1. Automatically identify the product category (e.g., Watches, Clothing, Beauty, Electronics...) based strictly on:
+            - Title: {title}
+            - Description: {description}
+            - Media: {featured_media}
+
+            2. Based on the identified category, generate a JSON array containing exactly 3 compelling product highlights designed explicitly to maximize conversion. Each highlight must have:
+            - "title": a short, high-impact aspect crucial to buyers (e.g., Style, Comfort, Battery Life...), specifically relevant to the product category.
+            - "comment": a persuasive, authentic-sounding customer comment (≤25 words), written in first-person perspective, highlighting specific benefits, emotional experiences, or practical advantages (include numbers, real-life scenarios, or sensory details).
+            - "star": always "AI-generated review based on product details from multiple sources."
+
+            🎯 Example titles by product category (customizable by AI):
+            - Watches: Design, Strap Quality, Waterproofing
+            - Clothing: Fabric Comfort, Stitching Quality, Vibrant Colors
+            - Beauty: Scent, Visible Results, Natural Ingredients
+            - Electronics: Performance, Durability, Battery Life
+
+            📌 Desired JSON output:
+            [
+            {
+                "title": "Strap Quality",
+                "comment": "The stainless steel strap feels premium, no irritation even after wearing for 8 hours daily.",
+                "star": "AI-generated review based on product details from multiple sources."
+            },
+            ...
+            ]
+
+            ❗ Return only the JSON array as specified. Do not include any additional text, notes, or markdown formatting.
+        """
+
+        # Call OpenAI API with new syntax
+        response = openai.chat.completions.create(
+            model="gpt-4o-mini",  # Using gpt-4o-mini model
+            messages=[
+                {"role": "system", "content": "Bạn là khách hàng ẩn danh để lại review sản phẩm."},
+                {"role": "user", "content": review_prompt}
+            ]
+        )
+
+        raw_content = response.choices[0].message.content
+        raw_content = raw_content.strip().replace('```json', '').replace('```', '').strip()
+
+        try:
+            ai_reviews = json.loads(raw_content)
+            
+            # Save to database
+            save_response = requests.post(SAVE_PRODUCT_API, json={
+                'id': id,
+                'aiReviews': ai_reviews
+            })
+            
+            save_result = save_response.json()
+            print("✅ Reviews saved to DB:", save_result)
+            
+            return jsonify({'reviews': ai_reviews})
+            
+        except json.JSONDecodeError:
+            print("❌ Invalid review JSON:", raw_content)
+            return jsonify({'error': 'Review JSON is invalid.'}), 500
+
+    except Exception as e:
+        print(f"❌ Error creating reviews: {str(e)}")
+        return jsonify({'error': 'Server error when creating reviews'}), 500
+
+@app.route('/api/openai/optimize', methods=['POST'])
+def openai_optimize():
+    try:
+        data = request.get_json()
+        id = data.get('id')
+        title = data.get('title')
+        description = data.get('description')
+        featured_media = data.get('featuredMedia')
+        image = data.get('image')
+
+        if not all([id, title, description]):
+            print("❌ Error: Missing ID, title or description!")
+            return jsonify({'error': 'Missing ID, title or description!'}), 400
+
+        # Generate prompt
+        prompt = generate_prompt(title, description, library_data, featured_media, image)
+        print("📩 JSON Prompt sent to OpenAI:", prompt)
+
+        # Call OpenAI API with new syntax
+        response = openai.chat.completions.create(
+            model="gpt-4o-mini",  # Using gpt-4o-mini model
+            messages=[
+                {"role": "system", "content": "Bạn là một chuyên gia content SEO viết content cho các sàn phẩm của ecommerce."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+
+        raw_content = response.choices[0].message.content
+        raw_content = raw_content.strip().replace('```json', '').replace('```', '').strip()
+
+        try:
+            ai_response = json.loads(raw_content)
+            print("✅ OpenAI returned valid JSON:", ai_response)
+        except json.JSONDecodeError:
+            print("❌ Invalid JSON:", raw_content)
+            return jsonify({'error': 'OpenAI response is not valid JSON.'}), 500
+
+        # Save to database
+        save_response = requests.post(SAVE_PRODUCT_API, json={
+            'id': id,
+            'optimizedTitle': ai_response['optimizedTitle'],
+            'optimizedDescription': ai_response['optimizedDescription']
+        })
+
+        save_result = save_response.json()
+        print("📩 Database save result:", save_result)
+
+        return jsonify({
+            'success': True,
+            'message': 'AI data processed and saved to DB!',
+            'data': {
+                'optimizedTitle': ai_response['optimizedTitle'],
+                'optimizedDescription': ai_response['optimizedDescription']
+            },
+            'dbResult': save_result
+        })
+
+    except Exception as e:
+        print(f"❌ Error calling OpenAI: {str(e)}")
+        return jsonify({'error': 'Failed to fetch data from OpenAI'}), 500
+
+@app.route('/api/optimize-background', methods=['POST'])
+def optimize_background():
+    try:
+        data = request.get_json()
+        print("📥 Received request data:", data)
+        
+        if not data or 'featuredMedia' not in data:
+            print("❌ Error: No featuredMedia provided")
+            return jsonify({'error': 'No featuredMedia provided'}), 400
+
+        image_url = data['featuredMedia']
+        product_id = data.get('id')  # Lấy ID sản phẩm từ request
+        print("🌐 Fetching image from URL:", image_url)
+
+        # Tải ảnh từ URL
+        response = requests.get(image_url)
+        if not response.ok:
+            print("❌ Error fetching image:", response.status_code)
+            return jsonify({'error': 'Failed to fetch image from URL'}), 400
+
+        image_data = response.content
+        print("✅ Image fetched successfully, size:", len(image_data))
+
+        # Tạo prompt cho Gemini
+        prompt = """Change the background to a consistent off-white color with the hex code #f0f0f2, ensuring no variations in tone, texture, or lighting. The background should be clean, evenly lit, and completely uniform. Center the product prominently within the frame, allowing it to occupy a significant portion of the image without touching the edges. Employ soft, diffused lighting that accurately showcases the product's natural shape, material texture, and subtle highlights without creating harsh shadows or glare. Maintain the original colors of the product precisely, avoiding any color enhancements or tone shifts. Ensure the subject is in sharp focus with high resolution, capturing intricate details, contours, and negative space with clarity in a close-up style."""
+
+        print("🤖 Sending request to Gemini API...")
+        # Gọi Gemini API để tối ưu ảnh
+        response = client.models.generate_content(
+            model="gemini-2.0-flash-exp",
+            contents=[
+                prompt,
+                types.Part(inline_data=types.Blob(
+                    mime_type="image/png",
+                    data=image_data
+                ))
+            ],
+            config=types.GenerateContentConfig(
+                response_modalities=["Text", "Image"]
+            )
+        )
+
+        print("✅ Received response from Gemini API")
+        # Trích xuất ảnh đã tối ưu từ response
+        result_image = None
+        for candidate in response.candidates:
+            for part in candidate.content.parts:
+                if part.inline_data and part.inline_data.mime_type == "image/png":
+                    result_image = base64.b64encode(part.inline_data.data).decode('utf-8')
+                    break
+            if result_image:
+                break
+
+        if not result_image:
+            print("❌ No optimized image in response")
+            return jsonify({'error': 'Failed to optimize image'}), 500
+
+        print("✅ Image optimized successfully")
+        # Lưu kết quả vào optimize_image_data
+        result_id = str(optimize_image_data['next_id'])
+        optimize_image_data['next_id'] += 1
+        
+        # Lưu ảnh gốc và ảnh đã tối ưu vào thư mục
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        original_image_path = os.path.join(OPTIMIZED_IMAGES_DIR, f'original_{result_id}_{timestamp}.png')
+        optimized_image_path = os.path.join(OPTIMIZED_IMAGES_DIR, f'optimized_{result_id}_{timestamp}.png')
+        
+        # Lưu ảnh gốc
+        with open(original_image_path, 'wb') as f:
+            f.write(image_data)
+        print(f"💾 Original image saved to: {original_image_path}")
+        
+        # Lưu ảnh đã tối ưu
+        with open(optimized_image_path, 'wb') as f:
+            f.write(base64.b64decode(result_image))
+        print(f"💾 Optimized image saved to: {optimized_image_path}")
+        
+        optimize_image_data['results'][result_id] = {
+            'id': result_id,
+            'original_image': base64.b64encode(image_data).decode('utf-8'),
+            'result_image': result_image,
+            'prompt': prompt,
+            'timestamp': datetime.now().timestamp(),
+            'creation_time': datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            'original_image_path': original_image_path,
+            'optimized_image_path': optimized_image_path
+        }
+        
+        # Lưu vào file
+        save_optimize_image_data()
+        print("💾 Results saved to local database")
+
+        # Lưu vào database chính
+        if product_id:
+            print("📤 Saving optimized image to main database...")
+            try:
+                save_response = requests.post(SAVE_OPTIMIZED_IMAGE_API, json={
+                    'id': product_id,
+                    'optimizedImage': result_image
+                })
+                
+                if not save_response.ok:
+                    print(f"❌ Error saving to main database. Status: {save_response.status_code}")
+                    print(f"❌ Error response: {save_response.text}")
+                    return jsonify({
+                        'success': True,
+                        'image': result_image,
+                        'id': result_id,
+                        'warning': f'Failed to save to main database: {save_response.text}',
+                        'local_paths': {
+                            'original': original_image_path,
+                            'optimized': optimized_image_path
+                        }
+                    })
+                
+                save_result = save_response.json()
+                print("✅ Image saved to main database:", save_result)
+            except Exception as e:
+                print(f"❌ Exception when saving to main database: {str(e)}")
+                return jsonify({
+                    'success': True,
+                    'image': result_image,
+                    'id': result_id,
+                    'warning': f'Failed to save to main database: {str(e)}',
+                    'local_paths': {
+                        'original': original_image_path,
+                        'optimized': optimized_image_path
+                    }
+                })
+
+        return jsonify({
+            'success': True,
+            'image': result_image,
+            'id': result_id,
+            'local_paths': {
+                'original': original_image_path,
+                'optimized': optimized_image_path
+            }
+        })
+
+    except Exception as e:
+        print(f"❌ Error in optimize_background: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(port=5004, debug=True)
 
